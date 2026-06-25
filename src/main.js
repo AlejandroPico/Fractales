@@ -2,8 +2,6 @@
   'use strict';
 
   const canvas = document.getElementById('fractalCanvas');
-  const ctx = canvas.getContext('2d', { alpha: false });
-
   const ui = {
     panel: document.querySelector('.panel-main'),
     togglePanel: document.getElementById('togglePanel'),
@@ -21,50 +19,295 @@
     toast: document.getElementById('toast')
   };
 
-  const FRACTAL_PRESETS = {
-    mandelbrot: { centerX: -0.55, centerY: 0, scale: 3.35, iterations: 180, family: 'escape' },
-    julia: { centerX: 0, centerY: 0, scale: 3.2, iterations: 220, family: 'escape' },
-    burningShip: { centerX: -0.45, centerY: -0.52, scale: 3.35, iterations: 190, family: 'escape' },
-    tricorn: { centerX: 0, centerY: 0, scale: 3.4, iterations: 180, family: 'escape' },
-    multibrot3: { centerX: 0, centerY: 0, scale: 3.0, iterations: 170, family: 'escape' },
-    newton: { centerX: 0, centerY: 0, scale: 4.0, iterations: 70, family: 'newton' },
-    barnsley: { centerX: 0, centerY: 5.1, scale: 11.2, iterations: 800, family: 'points' },
-    sierpinski: { centerX: 0.5, centerY: 0.43, scale: 1.25, iterations: 800, family: 'points' },
-    carpet: { centerX: 0.5, centerY: 0.5, scale: 1.18, iterations: 650, family: 'geometry' },
-    koch: { centerX: 0, centerY: 0.05, scale: 3.4, iterations: 650, family: 'geometry' },
-    dragon: { centerX: 0.45, centerY: 0.25, scale: 2.2, iterations: 680, family: 'geometry' },
-    hilbert: { centerX: 0.5, centerY: 0.5, scale: 1.2, iterations: 650, family: 'geometry' }
+  const FRACTALS = {
+    mandelbrot: { id: 0, mode: 'shader', centerX: -0.55, centerY: 0, scale: 3.35, iterations: 260 },
+    julia: { id: 1, mode: 'shader', centerX: 0, centerY: 0, scale: 3.2, iterations: 280 },
+    burningShip: { id: 2, mode: 'shader', centerX: -0.45, centerY: -0.52, scale: 3.35, iterations: 260 },
+    tricorn: { id: 3, mode: 'shader', centerX: 0, centerY: 0, scale: 3.4, iterations: 240 },
+    multibrot3: { id: 4, mode: 'shader', centerX: 0, centerY: 0, scale: 3.0, iterations: 220 },
+    newton: { id: 5, mode: 'shader', centerX: 0, centerY: 0, scale: 4.0, iterations: 80 },
+    barnsley: { id: 6, mode: 'points', centerX: 0, centerY: 4.8, scale: 10.8, iterations: 520 },
+    sierpinski: { id: 7, mode: 'points', centerX: 0.5, centerY: 0.47, scale: 1.12, iterations: 520 },
+    carpet: { id: 8, mode: 'shader', centerX: 0.5, centerY: 0.5, scale: 1.15, iterations: 420 },
+    koch: { id: 9, mode: 'lines', centerX: 0, centerY: 0.05, scale: 3.2, iterations: 520 },
+    dragon: { id: 10, mode: 'lines', centerX: 0.5, centerY: 0.45, scale: 1.3, iterations: 560 },
+    hilbert: { id: 11, mode: 'lines', centerX: 0.5, centerY: 0.5, scale: 1.15, iterations: 560 }
   };
 
   const state = {
     type: 'mandelbrot',
-    centerX: FRACTAL_PRESETS.mandelbrot.centerX,
-    centerY: FRACTAL_PRESETS.mandelbrot.centerY,
-    scale: FRACTAL_PRESETS.mandelbrot.scale,
-    baseScale: FRACTAL_PRESETS.mandelbrot.scale,
-    iterations: FRACTAL_PRESETS.mandelbrot.iterations,
-    quality: Number(ui.quality.value),
+    centerX: FRACTALS.mandelbrot.centerX,
+    centerY: FRACTALS.mandelbrot.centerY,
+    scale: FRACTALS.mandelbrot.scale,
+    baseScale: FRACTALS.mandelbrot.scale,
     speed: 1,
     minSpeed: 0.08,
-    maxSpeed: 40,
+    maxSpeed: 60,
     juliaCx: -0.74543,
     juliaCy: 0.11301,
+    keys: new Set(),
     dragging: false,
     lastMouseX: 0,
     lastMouseY: 0,
-    keys: new Set(),
-    needsRender: true,
-    interactive: false,
-    finalTimer: 0,
-    lastFrameTime: performance.now(),
-    lastRenderTime: 0,
-    cssWidth: 1,
-    cssHeight: 1,
-    pixelRatio: 1
+    width: 1,
+    height: 1,
+    dpr: 1,
+    lastFrame: performance.now(),
+    frameCount: 0,
+    fpsClock: performance.now(),
+    fps: 0,
+    needsGeometry: true,
+    activeBufferKey: '',
+    vertexCount: 0,
+    drawMode: null,
+    statusTimer: 0
   };
+
+  const gl = canvas.getContext('webgl2', {
+    antialias: true,
+    alpha: false,
+    depth: false,
+    stencil: false,
+    powerPreference: 'high-performance',
+    preserveDrawingBuffer: true
+  });
+
+  if (!gl) {
+    document.body.classList.add('webgl-error');
+    showToast('WebGL2 no está disponible en este navegador o está desactivado.');
+    return;
+  }
+
+  const vertexShaderSource = `#version 300 es
+    precision highp float;
+    in vec2 a_position;
+    out vec2 v_uv;
+    void main() {
+      v_uv = a_position * 0.5 + 0.5;
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+
+  const fragmentShaderSource = `#version 300 es
+    precision highp float;
+    in vec2 v_uv;
+    out vec4 outColor;
+
+    uniform vec2 u_resolution;
+    uniform vec2 u_center;
+    uniform float u_scale;
+    uniform int u_fractal;
+    uniform int u_iterations;
+    uniform vec2 u_julia;
+    uniform float u_time;
+
+    vec3 palette(float t, float variant) {
+      t = clamp(t, 0.0, 1.0);
+      vec3 a = vec3(0.08, 0.10, 0.20);
+      vec3 b = vec3(0.70, 0.54, 0.92);
+      vec3 c = vec3(0.78, 0.94, 0.99);
+      vec3 d = vec3(0.06 + variant, 0.22, 0.38 + variant * 0.35);
+      vec3 col = a + b * cos(6.28318 * (c * t + d));
+      col += vec3(0.13, 0.19, 0.23) * pow(t, 0.35);
+      return clamp(col, 0.0, 1.0);
+    }
+
+    vec2 pixelToWorld(vec2 uv) {
+      vec2 p = (uv - 0.5) * vec2(u_resolution.x / u_resolution.y, 1.0);
+      return u_center + p * u_scale;
+    }
+
+    vec3 escapeColor(vec2 c, int kind) {
+      vec2 z = vec2(0.0);
+      vec2 k = c;
+      if (kind == 1) {
+        z = c;
+        k = u_julia;
+      }
+
+      float escaped = 0.0;
+      float iter = 0.0;
+      for (int i = 0; i < 1200; i++) {
+        if (i >= u_iterations) break;
+        float x = z.x;
+        float y = z.y;
+        if (kind == 2) {
+          x = abs(x);
+          y = abs(y);
+          z = vec2(x * x - y * y, 2.0 * x * y) + k;
+        } else if (kind == 3) {
+          z = vec2(x * x - y * y, -2.0 * x * y) + k;
+        } else if (kind == 4) {
+          z = vec2(x * x * x - 3.0 * x * y * y, 3.0 * x * x * y - y * y * y) + k;
+        } else {
+          z = vec2(x * x - y * y, 2.0 * x * y) + k;
+        }
+        if (dot(z, z) > 16.0) {
+          escaped = 1.0;
+          iter = float(i);
+          break;
+        }
+      }
+
+      if (escaped < 0.5) {
+        return vec3(0.006, 0.010, 0.024);
+      }
+
+      float logZn = log(max(dot(z, z), 1.000001)) * 0.5;
+      float smooth = iter + 1.0 - log(max(logZn, 0.000001)) / log(2.0);
+      float t = smooth / float(max(u_iterations, 1));
+      return palette(t, float(kind) * 0.08);
+    }
+
+    vec3 newtonColor(vec2 z) {
+      vec2 roots[3];
+      roots[0] = vec2(1.0, 0.0);
+      roots[1] = vec2(-0.5, 0.8660254038);
+      roots[2] = vec2(-0.5, -0.8660254038);
+      vec3 rootColors[3];
+      rootColors[0] = vec3(1.0, 0.78, 0.24);
+      rootColors[1] = vec3(0.18, 0.78, 1.0);
+      rootColors[2] = vec3(1.0, 0.28, 0.74);
+
+      int rootIndex = 0;
+      float iter = 0.0;
+      for (int i = 0; i < 160; i++) {
+        if (i >= u_iterations) break;
+        float x = z.x;
+        float y = z.y;
+        vec2 f = vec2(x*x*x - 3.0*x*y*y - 1.0, 3.0*x*x*y - y*y*y);
+        vec2 df = vec2(3.0*(x*x - y*y), 6.0*x*y);
+        float denom = dot(df, df);
+        if (denom < 0.000000000001) break;
+        vec2 q = vec2(f.x*df.x + f.y*df.y, f.y*df.x - f.x*df.y) / denom;
+        z -= q;
+        iter = float(i);
+        for (int r = 0; r < 3; r++) {
+          if (distance(z, roots[r]) < 0.0001) {
+            rootIndex = r;
+            i = 9999;
+            break;
+          }
+        }
+      }
+      float shade = 1.0 - iter / float(max(u_iterations, 1));
+      shade = 0.18 + pow(clamp(shade, 0.0, 1.0), 0.55) * 0.82;
+      return rootColors[rootIndex] * shade;
+    }
+
+    vec3 carpetColor(vec2 p) {
+      vec2 q = p;
+      float inside = 1.0;
+      float level = clamp(float(u_iterations) / 80.0, 3.0, 8.0);
+      if (q.x < 0.0 || q.x > 1.0 || q.y < 0.0 || q.y > 1.0) {
+        inside = 0.0;
+      }
+      for (int i = 0; i < 9; i++) {
+        if (float(i) >= level) break;
+        q *= 3.0;
+        vec2 cell = floor(q);
+        if (cell.x == 1.0 && cell.y == 1.0) inside = 0.0;
+        q = fract(q);
+      }
+      vec3 back = vec3(0.01, 0.015, 0.035);
+      vec3 front = vec3(0.58, 0.90, 1.00);
+      float grid = smoothstep(0.0, 0.015, min(min(p.x, p.y), min(1.0 - p.x, 1.0 - p.y)));
+      return mix(back, front, inside * grid);
+    }
+
+    void main() {
+      vec2 c = pixelToWorld(v_uv);
+      vec3 color;
+
+      if (u_fractal == 5) {
+        color = newtonColor(c);
+      } else if (u_fractal == 8) {
+        color = carpetColor(c);
+      } else {
+        color = escapeColor(c, u_fractal);
+      }
+
+      float vignette = smoothstep(0.95, 0.25, distance(v_uv, vec2(0.5)));
+      color *= 0.84 + 0.16 * vignette;
+      outColor = vec4(color, 1.0);
+    }
+  `;
+
+  const primitiveVertexSource = `#version 300 es
+    precision highp float;
+    in vec2 a_world;
+    uniform vec2 u_resolution;
+    uniform vec2 u_center;
+    uniform float u_scale;
+    uniform float u_pointSize;
+    void main() {
+      vec2 p = (a_world - u_center) / u_scale;
+      vec2 clip = vec2(p.x / (u_resolution.x / u_resolution.y), p.y) * 2.0;
+      gl_Position = vec4(clip, 0.0, 1.0);
+      gl_PointSize = u_pointSize;
+    }
+  `;
+
+  const primitiveFragmentSource = `#version 300 es
+    precision highp float;
+    uniform vec4 u_color;
+    uniform int u_softPoints;
+    out vec4 outColor;
+    void main() {
+      if (u_softPoints == 1) {
+        vec2 p = gl_PointCoord * 2.0 - 1.0;
+        float d = dot(p, p);
+        if (d > 1.0) discard;
+        float a = smoothstep(1.0, 0.05, d);
+        outColor = vec4(u_color.rgb, u_color.a * a);
+      } else {
+        outColor = u_color;
+      }
+    }
+  `;
+
+  const programs = {
+    shader: createProgram(vertexShaderSource, fragmentShaderSource),
+    primitive: createProgram(primitiveVertexSource, primitiveFragmentSource)
+  };
+
+  const quadBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+  const geometryBuffer = gl.createBuffer();
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function createShader(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      const message = gl.getShaderInfoLog(shader);
+      gl.deleteShader(shader);
+      throw new Error(message || 'Error compilando shader WebGL.');
+    }
+    return shader;
+  }
+
+  function createProgram(vsSource, fsSource) {
+    const vertex = createShader(gl.VERTEX_SHADER, vsSource);
+    const fragment = createShader(gl.FRAGMENT_SHADER, fsSource);
+    const program = gl.createProgram();
+    gl.attachShader(program, vertex);
+    gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+    gl.deleteShader(vertex);
+    gl.deleteShader(fragment);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      const message = gl.getProgramInfoLog(program);
+      gl.deleteProgram(program);
+      throw new Error(message || 'Error enlazando programa WebGL.');
+    }
+    return program;
   }
 
   function showToast(message) {
@@ -74,251 +317,72 @@
     showToast.timer = setTimeout(() => ui.toast.classList.remove('is-visible'), 2200);
   }
 
+  function resizeCanvas() {
+    const qualityFactor = Number(ui.quality.value) || 1;
+    state.dpr = clamp((window.devicePixelRatio || 1) * qualityFactor, 1, 3);
+    state.width = Math.max(1, Math.floor(canvas.clientWidth * state.dpr));
+    state.height = Math.max(1, Math.floor(canvas.clientHeight * state.dpr));
+    canvas.width = state.width;
+    canvas.height = state.height;
+    gl.viewport(0, 0, state.width, state.height);
+  }
+
   function resetView(type = state.type) {
-    const preset = FRACTAL_PRESETS[type];
+    const preset = FRACTALS[type];
     state.type = type;
     state.centerX = preset.centerX;
     state.centerY = preset.centerY;
     state.scale = preset.scale;
     state.baseScale = preset.scale;
-    state.iterations = preset.iterations;
     ui.iterations.value = String(clamp(preset.iterations, Number(ui.iterations.min), Number(ui.iterations.max)));
-    requestRender(false);
+    state.needsGeometry = true;
     updateReadout();
   }
 
-  function resizeCanvas() {
-    const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
-    state.pixelRatio = dpr;
-    state.cssWidth = Math.max(1, canvas.clientWidth);
-    state.cssHeight = Math.max(1, canvas.clientHeight);
-    canvas.width = Math.floor(state.cssWidth * dpr);
-    canvas.height = Math.floor(state.cssHeight * dpr);
-    requestRender(false);
+  function detailLevel() {
+    const min = Number(ui.iterations.min);
+    const max = Number(ui.iterations.max);
+    return clamp((Number(ui.iterations.value) - min) / (max - min), 0, 1);
   }
 
-  function requestRender(interactive) {
-    state.needsRender = true;
-    state.interactive = Boolean(interactive);
-    if (!interactive) return;
+  function buildGeometry() {
+    const key = `${state.type}:${ui.iterations.value}`;
+    if (state.activeBufferKey === key && !state.needsGeometry) return;
+    state.needsGeometry = false;
+    state.activeBufferKey = key;
 
-    clearTimeout(state.finalTimer);
-    state.finalTimer = setTimeout(() => {
-      state.interactive = false;
-      state.needsRender = true;
-    }, 180);
-  }
-
-  function adjustSpeed(direction) {
-    const factor = direction > 0 ? 1.13 : 0.885;
-    state.speed = clamp(state.speed * factor, state.minSpeed, state.maxSpeed);
-    updateReadout();
-    showToast(`Velocidad ${state.speed.toFixed(2)}×`);
-  }
-
-  function worldToRender(x, y, renderWidth, renderHeight) {
-    return {
-      x: (x - state.centerX) / state.scale * renderWidth + renderWidth / 2,
-      y: (y - state.centerY) / state.scale * renderWidth + renderHeight / 2
-    };
-  }
-
-  function updateReadout() {
-    const zoom = state.baseScale / state.scale;
-    const speedPct = Math.log(state.speed / state.minSpeed) / Math.log(state.maxSpeed / state.minSpeed);
-    ui.speedValue.textContent = `${state.speed.toFixed(2)}×`;
-    ui.speedBar.style.width = `${clamp(speedPct, 0, 1) * 100}%`;
-    ui.zoomValue.textContent = `Zoom: ${zoom.toFixed(2)}×`;
-    ui.positionValue.textContent = `X: ${state.centerX.toFixed(6)} · Y: ${state.centerY.toFixed(6)}`;
-  }
-
-  function complexityValue() {
-    const raw = clamp(Number(ui.iterations.value), Number(ui.iterations.min), Number(ui.iterations.max));
-    return (raw - Number(ui.iterations.min)) / (Number(ui.iterations.max) - Number(ui.iterations.min));
-  }
-
-  function pointIterations(min, max) {
-    return Math.floor(min + complexityValue() * (max - min));
-  }
-
-  function buildRenderTarget() {
-    const baseQuality = state.interactive ? Math.min(0.38, state.quality) : state.quality;
-    const maxPixels = state.interactive ? 360000 : 1200000;
-    const desiredWidth = Math.max(160, Math.floor(canvas.width * baseQuality));
-    const desiredHeight = Math.max(120, Math.floor(canvas.height * baseQuality));
-    const pixelCount = desiredWidth * desiredHeight;
-    const limiter = pixelCount > maxPixels ? Math.sqrt(maxPixels / pixelCount) : 1;
-    const width = Math.max(160, Math.floor(desiredWidth * limiter));
-    const height = Math.max(120, Math.floor(desiredHeight * limiter));
-    const buffer = document.createElement('canvas');
-    buffer.width = width;
-    buffer.height = height;
-    const bufferCtx = buffer.getContext('2d', { alpha: false });
-    return { buffer, bufferCtx, width, height };
-  }
-
-  function paintBackground(targetCtx, width, height) {
-    const gradient = targetCtx.createRadialGradient(width * 0.5, height * 0.5, 0, width * 0.5, height * 0.5, Math.max(width, height) * 0.72);
-    gradient.addColorStop(0, '#111b3a');
-    gradient.addColorStop(0.55, '#050917');
-    gradient.addColorStop(1, '#01030a');
-    targetCtx.fillStyle = gradient;
-    targetCtx.fillRect(0, 0, width, height);
-  }
-
-  function escapeColor(iteration, maxIterations, zx, zy, variant) {
-    if (iteration >= maxIterations) return [3, 6, 14];
-    const magnitude = Math.sqrt(zx * zx + zy * zy);
-    const smooth = iteration + 1 - Math.log(Math.log(Math.max(magnitude, 1.000001))) / Math.log(2);
-    const t = clamp(smooth / maxIterations, 0, 1);
-    const wave = variant === 'burningShip' ? 0.15 : variant === 'tricorn' ? 0.32 : variant === 'multibrot3' ? 0.58 : 0.45;
-    const r = Math.floor(30 + 210 * Math.pow(t, 0.72));
-    const g = Math.floor(38 + 175 * (0.5 + 0.5 * Math.sin(9.5 * t + wave)) * (1 - t * 0.18));
-    const b = Math.floor(70 + 185 * (1 - Math.pow(t, 1.7)));
-    return [clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0, 255)];
-  }
-
-  function renderEscape(targetCtx, width, height) {
-    const maxIterations = clamp(Number(ui.iterations.value), 30, 800);
-    const image = targetCtx.createImageData(width, height);
-    const data = image.data;
-    let offset = 0;
-
-    for (let py = 0; py < height; py += 1) {
-      const cy = state.centerY + (py - height / 2) / width * state.scale;
-      for (let px = 0; px < width; px += 1) {
-        const cx = state.centerX + (px - width / 2) / width * state.scale;
-        let zx = 0;
-        let zy = 0;
-        let cReal = cx;
-        let cImag = cy;
-
-        if (state.type === 'julia') {
-          zx = cx;
-          zy = cy;
-          cReal = state.juliaCx;
-          cImag = state.juliaCy;
-        }
-
-        let i = 0;
-        for (; i < maxIterations; i += 1) {
-          let nx;
-          let ny;
-          if (state.type === 'burningShip') {
-            const ax = Math.abs(zx);
-            const ay = Math.abs(zy);
-            nx = ax * ax - ay * ay + cReal;
-            ny = 2 * ax * ay + cImag;
-          } else if (state.type === 'tricorn') {
-            nx = zx * zx - zy * zy + cReal;
-            ny = -2 * zx * zy + cImag;
-          } else if (state.type === 'multibrot3') {
-            nx = zx * zx * zx - 3 * zx * zy * zy + cReal;
-            ny = 3 * zx * zx * zy - zy * zy * zy + cImag;
-          } else {
-            nx = zx * zx - zy * zy + cReal;
-            ny = 2 * zx * zy + cImag;
-          }
-          zx = nx;
-          zy = ny;
-          if (zx * zx + zy * zy > 16) break;
-        }
-
-        const [r, g, b] = escapeColor(i, maxIterations, zx, zy, state.type);
-        data[offset] = r;
-        data[offset + 1] = g;
-        data[offset + 2] = b;
-        data[offset + 3] = 255;
-        offset += 4;
-      }
+    let vertices = [];
+    if (state.type === 'barnsley') {
+      vertices = generateBarnsley(Math.floor(90000 + detailLevel() * 360000));
+      state.drawMode = gl.POINTS;
+    } else if (state.type === 'sierpinski') {
+      vertices = generateSierpinski(Math.floor(80000 + detailLevel() * 320000));
+      state.drawMode = gl.POINTS;
+    } else if (state.type === 'koch') {
+      vertices = generateKoch(clamp(Math.floor(Number(ui.iterations.value) / 115), 2, 6));
+      state.drawMode = gl.LINE_STRIP;
+    } else if (state.type === 'dragon') {
+      vertices = generateDragon(clamp(Math.floor(Number(ui.iterations.value) / 42), 9, 17));
+      state.drawMode = gl.LINE_STRIP;
+    } else if (state.type === 'hilbert') {
+      vertices = generateHilbert(clamp(Math.floor(Number(ui.iterations.value) / 105), 3, 7));
+      state.drawMode = gl.LINE_STRIP;
+    } else {
+      state.vertexCount = 0;
+      return;
     }
 
-    targetCtx.putImageData(image, 0, 0);
+    const array = new Float32Array(vertices);
+    state.vertexCount = array.length / 2;
+    gl.bindBuffer(gl.ARRAY_BUFFER, geometryBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, array, gl.STATIC_DRAW);
   }
 
-  function renderNewton(targetCtx, width, height) {
-    const maxIterations = clamp(Number(ui.iterations.value), 20, 140);
-    const image = targetCtx.createImageData(width, height);
-    const data = image.data;
-    const roots = [
-      { x: 1, y: 0, color: [255, 225, 114] },
-      { x: -0.5, y: Math.sqrt(3) / 2, color: [110, 218, 255] },
-      { x: -0.5, y: -Math.sqrt(3) / 2, color: [255, 120, 202] }
-    ];
-    let offset = 0;
-
-    for (let py = 0; py < height; py += 1) {
-      const y = state.centerY + (py - height / 2) / width * state.scale;
-      for (let px = 0; px < width; px += 1) {
-        let x = state.centerX + (px - width / 2) / width * state.scale;
-        let zy = y;
-        let rootIndex = 0;
-        let i = 0;
-
-        for (; i < maxIterations; i += 1) {
-          const x2 = x * x;
-          const y2 = zy * zy;
-          const denom = 3 * (x2 + y2) * (x2 + y2);
-          if (denom < 1e-12) break;
-
-          const fx = x * x2 - 3 * x * y2 - 1;
-          const fy = 3 * x2 * zy - zy * y2;
-          const dfx = 3 * (x2 - y2);
-          const dfy = 6 * x * zy;
-          const qx = (fx * dfx + fy * dfy) / (dfx * dfx + dfy * dfy);
-          const qy = (fy * dfx - fx * dfy) / (dfx * dfx + dfy * dfy);
-          x -= qx;
-          zy -= qy;
-
-          let converged = false;
-          for (let r = 0; r < roots.length; r += 1) {
-            const dx = x - roots[r].x;
-            const dy = zy - roots[r].y;
-            if (dx * dx + dy * dy < 0.000001) {
-              rootIndex = r;
-              converged = true;
-              break;
-            }
-          }
-          if (converged) break;
-        }
-
-        const root = roots[rootIndex].color;
-        const shade = clamp(1 - (i / maxIterations) * 0.88, 0.15, 1);
-        data[offset] = Math.floor(root[0] * shade);
-        data[offset + 1] = Math.floor(root[1] * shade);
-        data[offset + 2] = Math.floor(root[2] * shade);
-        data[offset + 3] = 255;
-        offset += 4;
-      }
-    }
-
-    targetCtx.putImageData(image, 0, 0);
-  }
-
-  function renderPointFractal(targetCtx, width, height) {
-    paintBackground(targetCtx, width, height);
-    targetCtx.save();
-    targetCtx.globalCompositeOperation = 'lighter';
-    targetCtx.fillStyle = 'rgba(150, 230, 255, 0.34)';
-
-    if (state.type === 'barnsley') renderBarnsley(targetCtx, width, height);
-    if (state.type === 'sierpinski') renderSierpinski(targetCtx, width, height);
-
-    targetCtx.restore();
-  }
-
-  function plotWorldPoint(targetCtx, width, height, x, y, size = 1) {
-    const point = worldToRender(x, y, width, height);
-    if (point.x < -2 || point.y < -2 || point.x > width + 2 || point.y > height + 2) return;
-    targetCtx.fillRect(point.x, point.y, size, size);
-  }
-
-  function renderBarnsley(targetCtx, width, height) {
+  function generateBarnsley(count) {
+    const data = new Float32Array(count * 2);
     let x = 0;
     let y = 0;
-    const iterations = state.interactive ? 55000 : pointIterations(50000, 260000);
-    for (let i = 0; i < iterations; i += 1) {
+    for (let i = 0; i < count; i += 1) {
       const r = Math.random();
       let nx;
       let ny;
@@ -337,90 +401,55 @@
       }
       x = nx;
       y = ny;
-      if (i > 20) plotWorldPoint(targetCtx, width, height, x, 10 - y, 1);
+      data[i * 2] = x;
+      data[i * 2 + 1] = 10 - y;
     }
+    return data;
   }
 
-  function renderSierpinski(targetCtx, width, height) {
-    const vertices = [
-      [0.5, 0.02],
-      [0.05, 0.9],
-      [0.95, 0.9]
-    ];
-    let x = 0.5;
-    let y = 0.5;
-    const iterations = state.interactive ? 45000 : pointIterations(40000, 180000);
-    for (let i = 0; i < iterations; i += 1) {
-      const vertex = vertices[Math.floor(Math.random() * vertices.length)];
-      x = (x + vertex[0]) / 2;
-      y = (y + vertex[1]) / 2;
-      plotWorldPoint(targetCtx, width, height, x, y, 1);
+  function generateSierpinski(count) {
+    const data = new Float32Array(count * 2);
+    const vertices = [[0.5, 0.02], [0.05, 0.92], [0.95, 0.92]];
+    let x = 0.31;
+    let y = 0.37;
+    for (let i = 0; i < count; i += 1) {
+      const v = vertices[Math.floor(Math.random() * 3)];
+      x = (x + v[0]) * 0.5;
+      y = (y + v[1]) * 0.5;
+      data[i * 2] = x;
+      data[i * 2 + 1] = y;
     }
+    return data;
   }
 
-  function renderGeometry(targetCtx, width, height) {
-    paintBackground(targetCtx, width, height);
-    targetCtx.save();
-    targetCtx.lineCap = 'round';
-    targetCtx.lineJoin = 'round';
-    targetCtx.strokeStyle = 'rgba(190, 236, 255, 0.9)';
-    targetCtx.fillStyle = 'rgba(140, 218, 255, 0.8)';
-    targetCtx.lineWidth = Math.max(1, width / 1200);
-
-    if (state.type === 'koch') renderKoch(targetCtx, width, height);
-    if (state.type === 'dragon') renderDragon(targetCtx, width, height);
-    if (state.type === 'hilbert') renderHilbert(targetCtx, width, height);
-    if (state.type === 'carpet') renderCarpet(targetCtx, width, height);
-
-    targetCtx.restore();
-  }
-
-  function drawPolyline(targetCtx, width, height, points) {
-    if (points.length < 2) return;
-    targetCtx.beginPath();
-    const first = worldToRender(points[0][0], points[0][1], width, height);
-    targetCtx.moveTo(first.x, first.y);
-    for (let i = 1; i < points.length; i += 1) {
-      const p = worldToRender(points[i][0], points[i][1], width, height);
-      targetCtx.lineTo(p.x, p.y);
-    }
-    targetCtx.stroke();
-  }
-
-  function kochSegment(a, b) {
-    const dx = b[0] - a[0];
-    const dy = b[1] - a[1];
-    const p1 = [a[0] + dx / 3, a[1] + dy / 3];
-    const p3 = [a[0] + dx * 2 / 3, a[1] + dy * 2 / 3];
-    const angle = Math.PI / 3;
-    const rx = Math.cos(angle) * (p3[0] - p1[0]) - Math.sin(angle) * (p3[1] - p1[1]);
-    const ry = Math.sin(angle) * (p3[0] - p1[0]) + Math.cos(angle) * (p3[1] - p1[1]);
-    const p2 = [p1[0] + rx, p1[1] + ry];
-    return [a, p1, p2, p3];
-  }
-
-  function renderKoch(targetCtx, width, height) {
-    const radius = 1.05;
+  function generateKoch(depth) {
+    const radius = 1.08;
     const triangle = [];
     for (let i = 0; i < 3; i += 1) {
-      const angle = -Math.PI / 2 + i * 2 * Math.PI / 3;
-      triangle.push([Math.cos(angle) * radius, Math.sin(angle) * radius]);
+      const a = -Math.PI / 2 + i * Math.PI * 2 / 3;
+      triangle.push([Math.cos(a) * radius, Math.sin(a) * radius]);
     }
     let points = [triangle[0], triangle[1], triangle[2], triangle[0]];
-    const depth = state.interactive ? 4 : clamp(Math.floor(Number(ui.iterations.value) / 110), 1, 6);
     for (let d = 0; d < depth; d += 1) {
       const next = [];
       for (let i = 0; i < points.length - 1; i += 1) {
-        next.push(...kochSegment(points[i], points[i + 1]));
+        const a = points[i];
+        const b = points[i + 1];
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const p1 = [a[0] + dx / 3, a[1] + dy / 3];
+        const p3 = [a[0] + dx * 2 / 3, a[1] + dy * 2 / 3];
+        const rx = Math.cos(Math.PI / 3) * (p3[0] - p1[0]) - Math.sin(Math.PI / 3) * (p3[1] - p1[1]);
+        const ry = Math.sin(Math.PI / 3) * (p3[0] - p1[0]) + Math.cos(Math.PI / 3) * (p3[1] - p1[1]);
+        next.push(a, p1, [p1[0] + rx, p1[1] + ry], p3);
       }
       next.push(points[points.length - 1]);
       points = next;
     }
-    drawPolyline(targetCtx, width, height, points);
+    return flatten(points);
   }
 
-  function renderDragon(targetCtx, width, height) {
-    const order = state.interactive ? 12 : clamp(Math.floor(Number(ui.iterations.value) / 45), 8, 16);
+  function generateDragon(order) {
     let points = [[0, 0], [1, 0]];
     for (let n = 0; n < order; n += 1) {
       const pivot = points[points.length - 1];
@@ -430,27 +459,17 @@
         points.push([pivot[0] - dy, pivot[1] + dx]);
       }
     }
-    const normalised = normalisePoints(points, 0.12, 0.88, 0.12, 0.88);
-    drawPolyline(targetCtx, width, height, normalised);
+    return flatten(normalise(points, 0.08, 0.92, 0.08, 0.92));
   }
 
-  function normalisePoints(points, minXTarget, maxXTarget, minYTarget, maxYTarget) {
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    for (const [x, y] of points) {
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
+  function generateHilbert(order) {
+    const n = 1 << order;
+    const points = [];
+    for (let i = 0; i < n * n; i += 1) {
+      const xy = hilbertIndexToXY(order, i);
+      points.push([xy[0] / (n - 1), xy[1] / (n - 1)]);
     }
-    const sourceW = maxX - minX || 1;
-    const sourceH = maxY - minY || 1;
-    return points.map(([x, y]) => [
-      minXTarget + (x - minX) / sourceW * (maxXTarget - minXTarget),
-      minYTarget + (y - minY) / sourceH * (maxYTarget - minYTarget)
-    ]);
+    return flatten(points);
   }
 
   function hilbertIndexToXY(order, index) {
@@ -475,97 +494,141 @@
     return [x, y];
   }
 
-  function renderHilbert(targetCtx, width, height) {
-    const order = state.interactive ? 5 : clamp(Math.floor(Number(ui.iterations.value) / 110), 2, 7);
-    const n = 1 << order;
-    const points = [];
-    for (let i = 0; i < n * n; i += 1) {
-      const [x, y] = hilbertIndexToXY(order, i);
-      points.push([x / (n - 1), y / (n - 1)]);
+  function normalise(points, tx0, tx1, ty0, ty1) {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const p of points) {
+      minX = Math.min(minX, p[0]);
+      maxX = Math.max(maxX, p[0]);
+      minY = Math.min(minY, p[1]);
+      maxY = Math.max(maxY, p[1]);
     }
-    drawPolyline(targetCtx, width, height, points);
+    const sx = maxX - minX || 1;
+    const sy = maxY - minY || 1;
+    return points.map((p) => [tx0 + (p[0] - minX) / sx * (tx1 - tx0), ty0 + (p[1] - minY) / sy * (ty1 - ty0)]);
   }
 
-  function renderCarpet(targetCtx, width, height) {
-    const depth = state.interactive ? 4 : clamp(Math.floor(Number(ui.iterations.value) / 120), 2, 6);
-    targetCtx.fillStyle = 'rgba(178, 232, 255, 0.92)';
+  function flatten(points) {
+    const out = new Float32Array(points.length * 2);
+    for (let i = 0; i < points.length; i += 1) {
+      out[i * 2] = points[i][0];
+      out[i * 2 + 1] = points[i][1];
+    }
+    return out;
+  }
 
-    function drawSquare(x, y, size, level) {
-      if (level === 0) {
-        const a = worldToRender(x, y, width, height);
-        const b = worldToRender(x + size, y + size, width, height);
-        targetCtx.fillRect(a.x, a.y, b.x - a.x + 0.4, b.y - a.y + 0.4);
-        return;
-      }
-      const third = size / 3;
-      for (let row = 0; row < 3; row += 1) {
-        for (let col = 0; col < 3; col += 1) {
-          if (row === 1 && col === 1) continue;
-          drawSquare(x + col * third, y + row * third, third, level - 1);
-        }
-      }
+  function renderBackground() {
+    gl.clearColor(0.004, 0.006, 0.018, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  function renderShaderFractal() {
+    const program = programs.shader;
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    const positionLoc = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(positionLoc);
+    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), state.width, state.height);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_center'), state.centerX, state.centerY);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_scale'), state.scale);
+    gl.uniform1i(gl.getUniformLocation(program, 'u_fractal'), FRACTALS[state.type].id);
+    gl.uniform1i(gl.getUniformLocation(program, 'u_iterations'), Math.floor(Number(ui.iterations.value)));
+    gl.uniform2f(gl.getUniformLocation(program, 'u_julia'), state.juliaCx, state.juliaCy);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_time'), performance.now() / 1000);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  function renderPrimitiveFractal() {
+    buildGeometry();
+    renderBackground();
+
+    const program = programs.primitive;
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, geometryBuffer);
+    const worldLoc = gl.getAttribLocation(program, 'a_world');
+    gl.enableVertexAttribArray(worldLoc);
+    gl.vertexAttribPointer(worldLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_resolution'), state.width, state.height);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_center'), state.centerX, state.centerY);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_scale'), state.scale);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    if (state.drawMode === gl.POINTS) {
+      gl.uniform1f(gl.getUniformLocation(program, 'u_pointSize'), Math.max(1.1, state.dpr * 1.15));
+      gl.uniform4f(gl.getUniformLocation(program, 'u_color'), 0.55, 0.92, 1.0, 0.52);
+      gl.uniform1i(gl.getUniformLocation(program, 'u_softPoints'), 1);
+    } else {
+      gl.uniform1f(gl.getUniformLocation(program, 'u_pointSize'), 1);
+      gl.uniform4f(gl.getUniformLocation(program, 'u_color'), 0.72, 0.93, 1.0, 0.96);
+      gl.uniform1i(gl.getUniformLocation(program, 'u_softPoints'), 0);
     }
 
-    drawSquare(0, 0, 1, depth);
+    gl.drawArrays(state.drawMode, 0, state.vertexCount);
+    gl.disable(gl.BLEND);
   }
 
   function render() {
     const start = performance.now();
-    state.needsRender = false;
-    const { buffer, bufferCtx, width, height } = buildRenderTarget();
-    const family = FRACTAL_PRESETS[state.type].family;
-
-    if (family === 'escape') renderEscape(bufferCtx, width, height);
-    if (family === 'newton') renderNewton(bufferCtx, width, height);
-    if (family === 'points') renderPointFractal(bufferCtx, width, height);
-    if (family === 'geometry') renderGeometry(bufferCtx, width, height);
-
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(buffer, 0, 0, canvas.width, canvas.height);
+    resizeCanvas();
+    const preset = FRACTALS[state.type];
+    if (preset.mode === 'shader') renderShaderFractal();
+    else renderPrimitiveFractal();
 
     const elapsed = performance.now() - start;
-    state.lastRenderTime = elapsed;
-    ui.renderValue.textContent = `Render: ${elapsed.toFixed(0)} ms · ${width}×${height}`;
+    updateFps();
+    ui.renderValue.textContent = `GPU WebGL2 · ${elapsed.toFixed(1)} ms · ${state.fps.toFixed(0)} FPS`;
+  }
+
+  function updateFps() {
+    state.frameCount += 1;
+    const now = performance.now();
+    const elapsed = now - state.fpsClock;
+    if (elapsed >= 500) {
+      state.fps = state.frameCount * 1000 / elapsed;
+      state.frameCount = 0;
+      state.fpsClock = now;
+    }
+  }
+
+  function updateReadout() {
+    const zoom = state.baseScale / state.scale;
+    const t = Math.log(state.speed / state.minSpeed) / Math.log(state.maxSpeed / state.minSpeed);
+    ui.speedValue.textContent = `${state.speed.toFixed(2)}×`;
+    ui.speedBar.style.width = `${clamp(t, 0, 1) * 100}%`;
+    ui.zoomValue.textContent = `Zoom: ${zoom.toFixed(2)}×`;
+    ui.positionValue.textContent = `X: ${state.centerX.toFixed(6)} · Y: ${state.centerY.toFixed(6)}`;
+  }
+
+  function adjustSpeed(direction) {
+    const factor = direction > 0 ? 1.15 : 1 / 1.15;
+    state.speed = clamp(state.speed * factor, state.minSpeed, state.maxSpeed);
     updateReadout();
+    clearTimeout(state.statusTimer);
+    state.statusTimer = setTimeout(() => showToast(`Velocidad ${state.speed.toFixed(2)}×`), 10);
   }
 
   function animationFrame(now) {
-    const deltaSeconds = clamp((now - state.lastFrameTime) / 1000, 0, 0.05);
-    state.lastFrameTime = now;
+    const dt = clamp((now - state.lastFrame) / 1000, 0, 0.04);
+    state.lastFrame = now;
 
-    let moved = false;
-    const panStep = state.scale * state.speed * deltaSeconds * 0.65;
-    const zoomStep = Math.exp(state.speed * deltaSeconds * 0.9);
+    const pan = state.scale * state.speed * dt * 0.68;
+    const zoom = Math.exp(state.speed * dt * 0.92);
 
-    if (state.keys.has('KeyA') || state.keys.has('ArrowLeft')) {
-      state.centerX -= panStep;
-      moved = true;
-    }
-    if (state.keys.has('KeyD') || state.keys.has('ArrowRight')) {
-      state.centerX += panStep;
-      moved = true;
-    }
-    if (state.keys.has('ArrowUp')) {
-      state.centerY -= panStep;
-      moved = true;
-    }
-    if (state.keys.has('ArrowDown')) {
-      state.centerY += panStep;
-      moved = true;
-    }
-    if (state.keys.has('KeyW')) {
-      state.scale /= zoomStep;
-      moved = true;
-    }
-    if (state.keys.has('KeyS')) {
-      state.scale *= zoomStep;
-      moved = true;
-    }
+    if (state.keys.has('KeyA') || state.keys.has('ArrowLeft')) state.centerX -= pan;
+    if (state.keys.has('KeyD') || state.keys.has('ArrowRight')) state.centerX += pan;
+    if (state.keys.has('ArrowUp')) state.centerY -= pan;
+    if (state.keys.has('ArrowDown')) state.centerY += pan;
+    if (state.keys.has('KeyW')) state.scale /= zoom;
+    if (state.keys.has('KeyS')) state.scale *= zoom;
 
-    state.scale = clamp(state.scale, 1e-13, 1e8);
-
-    if (moved) requestRender(true);
-    if (state.needsRender) render();
+    state.scale = clamp(state.scale, 1e-14, 1e8);
+    updateReadout();
+    render();
     requestAnimationFrame(animationFrame);
   }
 
@@ -577,10 +640,13 @@
       showToast(`Fractal activo: ${ui.fractalType.options[ui.fractalType.selectedIndex].text}`);
     });
 
-    ui.iterations.addEventListener('input', () => requestRender(false));
+    ui.iterations.addEventListener('input', () => {
+      state.needsGeometry = true;
+    });
+
     ui.quality.addEventListener('change', () => {
-      state.quality = Number(ui.quality.value);
-      requestRender(false);
+      resizeCanvas();
+      showToast(`Calidad: ${ui.quality.options[ui.quality.selectedIndex].text}`);
     });
 
     ui.resetView.addEventListener('click', () => {
@@ -598,7 +664,7 @@
 
     ui.saveImage.addEventListener('click', () => {
       const link = document.createElement('a');
-      link.download = `fractales-${state.type}.png`;
+      link.download = `fractales-${state.type}-webgl.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
       showToast('Imagen PNG generada');
@@ -622,22 +688,19 @@
       const dy = event.clientY - state.lastMouseY;
       state.lastMouseX = event.clientX;
       state.lastMouseY = event.clientY;
-      state.centerX -= dx / state.cssWidth * state.scale;
-      state.centerY -= dy / state.cssWidth * state.scale;
-      requestRender(true);
+      state.centerX -= dx / canvas.clientWidth * state.scale * (state.width / state.height);
+      state.centerY -= dy / canvas.clientHeight * state.scale;
     });
 
     canvas.addEventListener('pointerup', (event) => {
       state.dragging = false;
       canvas.classList.remove('dragging');
-      canvas.releasePointerCapture(event.pointerId);
-      requestRender(false);
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     });
 
     canvas.addEventListener('pointercancel', () => {
       state.dragging = false;
       canvas.classList.remove('dragging');
-      requestRender(false);
     });
 
     canvas.addEventListener('wheel', (event) => {
@@ -646,23 +709,23 @@
     }, { passive: false });
 
     window.addEventListener('keydown', (event) => {
-      const navigationKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-      if (!navigationKeys.includes(event.code)) return;
+      const codes = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+      if (!codes.includes(event.code)) return;
       event.preventDefault();
       state.keys.add(event.code);
     });
 
     window.addEventListener('keyup', (event) => {
       state.keys.delete(event.code);
-      requestRender(false);
     });
   }
 
   function init() {
+    gl.disable(gl.DEPTH_TEST);
     bindEvents();
     resizeCanvas();
     resetView('mandelbrot');
-    showToast('Fractales v1 cargado');
+    showToast('Motor WebGL2 activado');
     requestAnimationFrame(animationFrame);
   }
 
