@@ -1,31 +1,36 @@
 # Fractales
 
-**Fractales** es un explorador web interactivo de fractales pensado como proyecto científico, educativo y de conocimiento público. La primera versión funciona como una página estática compatible con GitHub Pages: no necesita servidor, compilación ni dependencias externas.
+**Fractales** es un explorador web interactivo de fractales pensado como proyecto científico, educativo y de conocimiento público. Funciona como una página estática compatible con GitHub Pages, sin servidor, compilación ni dependencias externas.
 
 ## Estado actual
 
-Versión inicial funcional: `v1.0.0`.
+Versión actual: `v1.1.0`.
 
-Incluye un lienzo a pantalla completa, controles flotantes y navegación tipo microvideojuego para moverse por el plano fractal.
+Esta versión cambia el motor de renderizado principal a **WebGL2**, por lo que los fractales de tipo píxel se calculan en la GPU mediante shaders. El objetivo es conseguir navegación más fluida, mayor definición y una base técnica preparada para futuras visualizaciones 3D.
 
-## Fractales incluidos en la primera versión
+## Motor gráfico
 
-La aplicación incorpora representantes de varias familias fractales:
+- **WebGL2 nativo** para Mandelbrot, Julia, Burning Ship, Tricorn, Multibrot, Newton y Alfombra de Sierpinski.
+- **WebGL2 con buffers de vértices** para fractales por puntos y curvas: Helecho de Barnsley, Triángulo de Sierpinski, Copo de Koch, Curva del dragón y Curva de Hilbert.
+- Sin librerías externas. Todo el motor está en `src/main.js`.
+- Exportación a PNG desde el propio lienzo WebGL.
 
-| Fractal | Familia | Descripción breve |
+## Fractales incluidos
+
+| Fractal | Familia | Renderizado |
 |---|---:|---|
-| Mandelbrot | Escape-time | Conjunto clásico definido por la iteración `z = z² + c`. |
-| Julia | Escape-time | Familia relacionada con Mandelbrot, con constante compleja configurable. |
-| Burning Ship | Escape-time | Variante con valores absolutos que genera estructuras con aspecto de nave o llama. |
-| Tricorn / Mandelbar | Escape-time | Variante con conjugación compleja en cada iteración. |
-| Multibrot cúbico | Escape-time | Versión de Mandelbrot con potencia 3. |
-| Newton `z³ − 1` | Newtoniano | Basado en la convergencia del método de Newton hacia raíces complejas. |
-| Helecho de Barnsley | IFS | Fractal generado por sistema de funciones iteradas. |
-| Triángulo de Sierpinski | IFS | Estructura autosimilar triangular generada por juego del caos. |
-| Alfombra de Sierpinski | Geométrico | Subdivisión recursiva de un cuadrado. |
-| Copo de nieve de Koch | Curva fractal | Curva autosimilar generada por sustitución geométrica. |
-| Curva del dragón | Curva fractal | Curva de plegado con crecimiento recursivo. |
-| Curva de Hilbert | Curva de relleno | Curva recursiva que aproxima el llenado de una superficie. |
+| Mandelbrot | Escape-time | Shader GPU |
+| Julia | Escape-time | Shader GPU |
+| Burning Ship | Escape-time | Shader GPU |
+| Tricorn / Mandelbar | Escape-time | Shader GPU |
+| Multibrot cúbico | Escape-time | Shader GPU |
+| Newton `z³ − 1` | Newtoniano | Shader GPU |
+| Helecho de Barnsley | IFS | Puntos WebGL |
+| Triángulo de Sierpinski | IFS | Puntos WebGL |
+| Alfombra de Sierpinski | Geométrico | Shader GPU |
+| Copo de nieve de Koch | Curva fractal | Líneas WebGL |
+| Curva del dragón | Curva fractal | Líneas WebGL |
+| Curva de Hilbert | Curva de relleno | Líneas WebGL |
 
 ## Controles
 
@@ -40,10 +45,20 @@ La aplicación incorpora representantes de varias familias fractales:
 - **Julia aleatoria**: cambia a un conjunto de Julia con una constante compleja aleatoria.
 - **PNG**: exporta una captura del lienzo actual.
 
+## Interfaz
+
+- Lienzo a pantalla completa.
+- Panel flotante plegable.
+- Selector de fractal.
+- Selector de calidad GPU: rendimiento, nativa y suprema.
+- Indicador de velocidad, zoom, posición, tiempo de render y FPS.
+- Favicon SVG propio basado en una estructura tipo Sierpinski.
+
 ## Estructura del proyecto
 
 ```text
 Fractales/
+├── favicon.svg
 ├── index.html
 ├── styles.css
 ├── src/
@@ -63,6 +78,10 @@ Ruta recomendada en GitHub:
 4. Elige rama `main` y carpeta `/root`.
 5. Guarda los cambios.
 
+## Requisitos del navegador
+
+La versión `v1.1.0` requiere WebGL2. Los navegadores modernos suelen soportarlo, pero si no aparece la visualización conviene comprobar que la aceleración por hardware esté activada.
+
 ## Objetivo del proyecto
 
 El objetivo de **Fractales** es evolucionar hacia una herramienta visual y educativa donde cualquier persona pueda explorar familias fractales, comparar fórmulas, entender su construcción matemática y navegar por ellas con una experiencia cercana a la de un visor científico interactivo.
@@ -72,13 +91,22 @@ El objetivo de **Fractales** es evolucionar hacia una herramienta visual y educa
 - Panel explicativo por fractal con fórmula, historia y ejemplos de uso.
 - Parámetros editables para Julia, Multibrot y Newton.
 - Paletas de color seleccionables.
-- Modo de renderizado progresivo para más resolución sin bloquear la interfaz.
 - Marcadores de ubicaciones interesantes dentro de Mandelbrot y Burning Ship.
 - Mini-mapa del plano complejo.
 - Sistema de rutas o “viajes” por zonas famosas de los fractales.
+- Primeros fractales 3D: Mandelbulb, Mandelbox, Julia 3D y ray marching.
 - Versión educativa con glosario: número complejo, iteración, convergencia, autosimilitud, dimensión fractal.
 
 ## Historial de versiones
+
+### v1.1.0
+
+- Añadido favicon SVG propio con identidad fractal.
+- Corregida la legibilidad de los desplegables.
+- Sustituido el motor CPU/Canvas 2D por un motor WebGL2 acelerado por GPU.
+- Añadido indicador de tiempo de render y FPS.
+- Añadido selector de calidad GPU.
+- Preparada la base técnica para futuras visualizaciones 3D.
 
 ### v1.0.0
 
