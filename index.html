@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fractales · Explorador interactivo</title>
+  <meta name="description" content="Explorador interactivo de fractales en pantalla completa con navegación por teclado, ratón y control de velocidad." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <canvas id="fractalCanvas" aria-label="Lienzo interactivo de fractales"></canvas>
+
+  <main class="app-shell" aria-label="Controles del explorador de fractales">
+    <section class="panel panel-main">
+      <header class="brand">
+        <div>
+          <p class="eyebrow">Explorador científico</p>
+          <h1>Fractales</h1>
+        </div>
+        <button id="togglePanel" class="icon-button" type="button" aria-label="Ocultar o mostrar panel de controles">☰</button>
+      </header>
+
+      <label class="field">
+        <span>Tipo de fractal</span>
+        <select id="fractalType">
+          <option value="mandelbrot">Mandelbrot</option>
+          <option value="julia">Julia</option>
+          <option value="burningShip">Burning Ship</option>
+          <option value="tricorn">Tricorn / Mandelbar</option>
+          <option value="multibrot3">Multibrot cúbico</option>
+          <option value="newton">Newton z³ − 1</option>
+          <option value="barnsley">Helecho de Barnsley</option>
+          <option value="sierpinski">Triángulo de Sierpinski</option>
+          <option value="carpet">Alfombra de Sierpinski</option>
+          <option value="koch">Copo de nieve de Koch</option>
+          <option value="dragon">Curva del dragón</option>
+          <option value="hilbert">Curva de Hilbert</option>
+        </select>
+      </label>
+
+      <div class="grid-two">
+        <label class="field">
+          <span>Iteraciones / detalle</span>
+          <input id="iterations" type="range" min="30" max="800" value="180" step="10" />
+        </label>
+        <label class="field">
+          <span>Calidad</span>
+          <select id="quality">
+            <option value="0.5">Rápida</option>
+            <option value="0.72" selected>Equilibrada</option>
+            <option value="1">Alta</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="button-row">
+        <button id="resetView" type="button">Recentrar</button>
+        <button id="randomJulia" type="button">Julia aleatoria</button>
+        <button id="saveImage" type="button">PNG</button>
+      </div>
+
+      <article class="readout" aria-live="polite">
+        <div>
+          <span>Velocidad</span>
+          <strong id="speedValue">1.00×</strong>
+        </div>
+        <div class="speed-track" aria-hidden="true"><span id="speedBar"></span></div>
+        <div class="metrics">
+          <span id="zoomValue">Zoom: 1.00×</span>
+          <span id="positionValue">X: 0 · Y: 0</span>
+          <span id="renderValue">Render: —</span>
+        </div>
+      </article>
+
+      <section class="help">
+        <h2>Controles</h2>
+        <p><strong>Ratón:</strong> clic y arrastre para moverte por el plano.</p>
+        <p><strong>Rueda:</strong> sube o baja la velocidad de navegación y zoom.</p>
+        <p><strong>W/S:</strong> zoom hacia dentro / hacia fuera. <strong>A/D:</strong> izquierda / derecha.</p>
+        <p><strong>Flechas:</strong> desplazamiento vertical y horizontal adicional.</p>
+      </section>
+    </section>
+  </main>
+
+  <aside id="toast" class="toast" role="status" aria-live="polite"></aside>
+
+  <script src="src/main.js" defer></script>
+</body>
+</html>
