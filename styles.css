@@ -5,6 +5,8 @@
   --muted: #aab4d6;
   --accent: #8fd3ff;
   --accent-strong: #e8f7ff;
+  --select-bg: #10182f;
+  --select-text: #f8fbff;
   --button-bg: rgba(255, 255, 255, 0.1);
   --button-border: rgba(255, 255, 255, 0.18);
   --shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
@@ -131,12 +133,23 @@ select {
   border: 1px solid var(--button-border);
   border-radius: 14px;
   padding: 11px 42px 11px 12px;
-  color: var(--text);
+  color: var(--select-text);
   background:
     linear-gradient(45deg, transparent 50%, var(--accent) 50%) calc(100% - 18px) 50% / 7px 7px no-repeat,
     linear-gradient(135deg, var(--accent) 50%, transparent 50%) calc(100% - 13px) 50% / 7px 7px no-repeat,
-    rgba(255, 255, 255, 0.09);
+    var(--select-bg);
   outline: none;
+}
+
+select option,
+select optgroup {
+  color: #08111f;
+  background: #f8fbff;
+}
+
+select option:checked {
+  color: #020817;
+  background: #b9e9ff;
 }
 
 select:focus,
@@ -261,6 +274,21 @@ button:hover {
 .toast.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.webgl-error::after {
+  content: "WebGL2 no está disponible. Activa la aceleración gráfica del navegador o utiliza un navegador moderno.";
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  max-width: 540px;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 22px;
+  background: rgba(10, 16, 34, 0.92);
+  color: #fff;
+  text-align: center;
+  box-shadow: var(--shadow);
 }
 
 @media (max-width: 720px) {
