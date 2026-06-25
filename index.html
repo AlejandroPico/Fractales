@@ -3,18 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fractales · Explorador interactivo</title>
-  <meta name="description" content="Explorador interactivo de fractales en pantalla completa con navegación por teclado, ratón y control de velocidad." />
+  <title>Fractales · Explorador WebGL</title>
+  <meta name="description" content="Explorador interactivo de fractales con motor WebGL2, navegación por teclado, ratón y control de velocidad." />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <canvas id="fractalCanvas" aria-label="Lienzo interactivo de fractales"></canvas>
+  <canvas id="fractalCanvas" aria-label="Lienzo interactivo de fractales renderizado con WebGL2"></canvas>
 
   <main class="app-shell" aria-label="Controles del explorador de fractales">
     <section class="panel panel-main">
       <header class="brand">
         <div>
-          <p class="eyebrow">Explorador científico</p>
+          <p class="eyebrow">Explorador científico · GPU</p>
           <h1>Fractales</h1>
         </div>
         <button id="togglePanel" class="icon-button" type="button" aria-label="Ocultar o mostrar panel de controles">☰</button>
@@ -41,14 +42,14 @@
       <div class="grid-two">
         <label class="field">
           <span>Iteraciones / detalle</span>
-          <input id="iterations" type="range" min="30" max="800" value="180" step="10" />
+          <input id="iterations" type="range" min="30" max="800" value="260" step="10" />
         </label>
         <label class="field">
-          <span>Calidad</span>
+          <span>Calidad GPU</span>
           <select id="quality">
-            <option value="0.5">Rápida</option>
-            <option value="0.72" selected>Equilibrada</option>
-            <option value="1">Alta</option>
+            <option value="0.75">Rendimiento</option>
+            <option value="1" selected>Nativa</option>
+            <option value="1.35">Suprema</option>
           </select>
         </label>
       </div>
@@ -68,7 +69,7 @@
         <div class="metrics">
           <span id="zoomValue">Zoom: 1.00×</span>
           <span id="positionValue">X: 0 · Y: 0</span>
-          <span id="renderValue">Render: —</span>
+          <span id="renderValue">GPU WebGL2 · —</span>
         </div>
       </article>
 
