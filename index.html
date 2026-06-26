@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fractales · Explorador WebGL</title>
-  <meta name="description" content="Explorador interactivo de fractales con motor WebGL2, navegación por teclado, ratón y control de velocidad." />
-  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css" />
+  <title>Fractales · Explorador interactivo</title>
+  <meta name="description" content="Explorador interactivo de fractales con navegación por teclado, ratón, control de velocidad y render estable." />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.1.2" />
+  <link rel="stylesheet" href="styles.css?v=1.1.2" />
 </head>
 <body>
-  <canvas id="fractalCanvas" aria-label="Lienzo interactivo de fractales renderizado con WebGL2"></canvas>
+  <canvas id="fractalCanvas" aria-label="Lienzo interactivo de fractales"></canvas>
 
   <main class="app-shell" aria-label="Controles del explorador de fractales">
     <section class="panel panel-main">
       <header class="brand">
         <div>
-          <p class="eyebrow">Explorador científico · GPU</p>
+          <p class="eyebrow">Explorador científico</p>
           <h1>Fractales</h1>
         </div>
         <button id="togglePanel" class="icon-button" type="button" aria-label="Ocultar o mostrar panel de controles">☰</button>
@@ -42,14 +42,14 @@
       <div class="grid-two">
         <label class="field">
           <span>Iteraciones / detalle</span>
-          <input id="iterations" type="range" min="30" max="800" value="260" step="10" />
+          <input id="iterations" type="range" min="30" max="800" value="240" step="10" />
         </label>
         <label class="field">
-          <span>Calidad GPU</span>
+          <span>Calidad visual</span>
           <select id="quality">
-            <option value="0.75">Rendimiento</option>
-            <option value="1" selected>Nativa</option>
-            <option value="1.35">Suprema</option>
+            <option value="0.48">Rendimiento</option>
+            <option value="0.72" selected>Nativa</option>
+            <option value="1">Suprema</option>
           </select>
         </label>
       </div>
@@ -69,7 +69,7 @@
         <div class="metrics">
           <span id="zoomValue">Zoom: 1.00×</span>
           <span id="positionValue">X: 0 · Y: 0</span>
-          <span id="renderValue">GPU WebGL2 · —</span>
+          <span id="renderValue">Canvas 2D · —</span>
         </div>
       </article>
 
@@ -85,6 +85,6 @@
 
   <aside id="toast" class="toast" role="status" aria-live="polite"></aside>
 
-  <script src="src/main.js" defer></script>
+  <script src="src/main.js?v=1.1.2" defer></script>
 </body>
 </html>
