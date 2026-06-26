@@ -4,14 +4,14 @@
 
 ## Estado actual
 
-Versión actual: `v1.1.0`.
+Versión actual: `v1.1.1`.
 
-Esta versión cambia el motor de renderizado principal a **WebGL2**, por lo que los fractales de tipo píxel se calculan en la GPU mediante shaders. El objetivo es conseguir navegación más fluida, mayor definición y una base técnica preparada para futuras visualizaciones 3D.
+Esta versión mantiene el renderizado principal en **WebGL2**, pero sustituye el primer motor experimental por un shader más conservador y compatible para corregir la pantalla negra detectada en la `v1.1.0`. Si el navegador rechaza WebGL2 o falla la compilación del shader, ahora se muestra un error visible en pantalla en lugar de quedarse en negro.
 
 ## Motor gráfico
 
-- **WebGL2 nativo** para Mandelbrot, Julia, Burning Ship, Tricorn, Multibrot, Newton y Alfombra de Sierpinski.
-- **WebGL2 con buffers de vértices** para fractales por puntos y curvas: Helecho de Barnsley, Triángulo de Sierpinski, Copo de Koch, Curva del dragón y Curva de Hilbert.
+- **WebGL2 nativo** para Mandelbrot, Julia, Burning Ship, Tricorn, Multibrot, Newton, Sierpinski y Alfombra de Sierpinski.
+- Motor de shader único y más compatible para evitar fallos silenciosos.
 - Sin librerías externas. Todo el motor está en `src/main.js`.
 - Exportación a PNG desde el propio lienzo WebGL.
 
@@ -25,12 +25,12 @@ Esta versión cambia el motor de renderizado principal a **WebGL2**, por lo que 
 | Tricorn / Mandelbar | Escape-time | Shader GPU |
 | Multibrot cúbico | Escape-time | Shader GPU |
 | Newton `z³ − 1` | Newtoniano | Shader GPU |
-| Helecho de Barnsley | IFS | Puntos WebGL |
-| Triángulo de Sierpinski | IFS | Puntos WebGL |
+| Helecho de Barnsley | IFS | Procedural GPU provisional |
+| Triángulo de Sierpinski | IFS | Shader GPU |
 | Alfombra de Sierpinski | Geométrico | Shader GPU |
-| Copo de nieve de Koch | Curva fractal | Líneas WebGL |
-| Curva del dragón | Curva fractal | Líneas WebGL |
-| Curva de Hilbert | Curva de relleno | Líneas WebGL |
+| Copo de nieve de Koch | Curva fractal | Procedural GPU provisional |
+| Curva del dragón | Curva fractal | Procedural GPU provisional |
+| Curva de Hilbert | Curva de relleno | Procedural GPU provisional |
 
 ## Controles
 
@@ -80,7 +80,7 @@ Ruta recomendada en GitHub:
 
 ## Requisitos del navegador
 
-La versión `v1.1.0` requiere WebGL2. Los navegadores modernos suelen soportarlo, pero si no aparece la visualización conviene comprobar que la aceleración por hardware esté activada.
+La versión `v1.1.1` requiere WebGL2. Los navegadores modernos suelen soportarlo, pero si no aparece la visualización conviene comprobar que la aceleración por hardware esté activada. Si el shader falla, la página debe mostrar el mensaje de error técnico en pantalla.
 
 ## Objetivo del proyecto
 
@@ -94,10 +94,18 @@ El objetivo de **Fractales** es evolucionar hacia una herramienta visual y educa
 - Marcadores de ubicaciones interesantes dentro de Mandelbrot y Burning Ship.
 - Mini-mapa del plano complejo.
 - Sistema de rutas o “viajes” por zonas famosas de los fractales.
+- Reintroducción precisa de curvas IFS/recursivas mediante buffers WebGL robustos.
 - Primeros fractales 3D: Mandelbulb, Mandelbox, Julia 3D y ray marching.
 - Versión educativa con glosario: número complejo, iteración, convergencia, autosimilitud, dimensión fractal.
 
 ## Historial de versiones
+
+### v1.1.1
+
+- Corregida la pantalla negra de la `v1.1.0`.
+- Sustituido el motor WebGL experimental por un shader único más compatible.
+- Añadidos errores visibles de compilación/enlace WebGL para evitar fallos silenciosos.
+- Mantenido el render GPU y los controles existentes.
 
 ### v1.1.0
 
