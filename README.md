@@ -4,33 +4,33 @@
 
 ## Estado actual
 
-Versión actual: `v1.1.1`.
+Versión actual: `v1.1.2`.
 
-Esta versión mantiene el renderizado principal en **WebGL2**, pero sustituye el primer motor experimental por un shader más conservador y compatible para corregir la pantalla negra detectada en la `v1.1.0`. Si el navegador rechaza WebGL2 o falla la compilación del shader, ahora se muestra un error visible en pantalla en lugar de quedarse en negro.
+Esta versión prioriza la **visibilidad estable**. Después de detectar que el motor WebGL dejaba el lienzo negro en algunos entornos, el render principal se ha pasado temporalmente a **Canvas 2D** con render adaptativo. El objetivo inmediato es que la aplicación pinte siempre en pantalla, mantenga la navegación y permita validar la experiencia antes de reintroducir WebGL/WebGPU con pruebas más controladas.
 
 ## Motor gráfico
 
-- **WebGL2 nativo** para Mandelbrot, Julia, Burning Ship, Tricorn, Multibrot, Newton, Sierpinski y Alfombra de Sierpinski.
-- Motor de shader único y más compatible para evitar fallos silenciosos.
-- Sin librerías externas. Todo el motor está en `src/main.js`.
-- Exportación a PNG desde el propio lienzo WebGL.
+- **Canvas 2D estable** como motor principal de la versión `v1.1.2`.
+- Render adaptativo: resolución reducida durante navegación y mayor resolución cuando la vista queda quieta.
+- Cache busting en `index.html` mediante `?v=1.1.2` para evitar que GitHub Pages o el navegador mantengan un `main.js` antiguo.
+- Exportación a PNG desde el propio lienzo.
 
 ## Fractales incluidos
 
 | Fractal | Familia | Renderizado |
 |---|---:|---|
-| Mandelbrot | Escape-time | Shader GPU |
-| Julia | Escape-time | Shader GPU |
-| Burning Ship | Escape-time | Shader GPU |
-| Tricorn / Mandelbar | Escape-time | Shader GPU |
-| Multibrot cúbico | Escape-time | Shader GPU |
-| Newton `z³ − 1` | Newtoniano | Shader GPU |
-| Helecho de Barnsley | IFS | Procedural GPU provisional |
-| Triángulo de Sierpinski | IFS | Shader GPU |
-| Alfombra de Sierpinski | Geométrico | Shader GPU |
-| Copo de nieve de Koch | Curva fractal | Procedural GPU provisional |
-| Curva del dragón | Curva fractal | Procedural GPU provisional |
-| Curva de Hilbert | Curva de relleno | Procedural GPU provisional |
+| Mandelbrot | Escape-time | Canvas 2D adaptativo |
+| Julia | Escape-time | Canvas 2D adaptativo |
+| Burning Ship | Escape-time | Canvas 2D adaptativo |
+| Tricorn / Mandelbar | Escape-time | Canvas 2D adaptativo |
+| Multibrot cúbico | Escape-time | Canvas 2D adaptativo |
+| Newton `z³ − 1` | Newtoniano | Canvas 2D adaptativo |
+| Helecho de Barnsley | IFS | Puntos Canvas |
+| Triángulo de Sierpinski | IFS | Puntos Canvas |
+| Alfombra de Sierpinski | Geométrico | Canvas recursivo |
+| Copo de nieve de Koch | Curva fractal | Canvas recursivo |
+| Curva del dragón | Curva fractal | Canvas recursivo |
+| Curva de Hilbert | Curva de relleno | Canvas recursivo |
 
 ## Controles
 
@@ -50,8 +50,8 @@ Esta versión mantiene el renderizado principal en **WebGL2**, pero sustituye el
 - Lienzo a pantalla completa.
 - Panel flotante plegable.
 - Selector de fractal.
-- Selector de calidad GPU: rendimiento, nativa y suprema.
-- Indicador de velocidad, zoom, posición, tiempo de render y FPS.
+- Selector de calidad visual: rendimiento, nativa y suprema.
+- Indicador de velocidad, zoom, posición y tiempo de render.
 - Favicon SVG propio basado en una estructura tipo Sierpinski.
 
 ## Estructura del proyecto
@@ -78,27 +78,29 @@ Ruta recomendada en GitHub:
 4. Elige rama `main` y carpeta `/root`.
 5. Guarda los cambios.
 
-## Requisitos del navegador
-
-La versión `v1.1.1` requiere WebGL2. Los navegadores modernos suelen soportarlo, pero si no aparece la visualización conviene comprobar que la aceleración por hardware esté activada. Si el shader falla, la página debe mostrar el mensaje de error técnico en pantalla.
-
 ## Objetivo del proyecto
 
 El objetivo de **Fractales** es evolucionar hacia una herramienta visual y educativa donde cualquier persona pueda explorar familias fractales, comparar fórmulas, entender su construcción matemática y navegar por ellas con una experiencia cercana a la de un visor científico interactivo.
 
 ## Próximas mejoras propuestas
 
+- Reintroducir WebGL2 de forma incremental: primero un shader mínimo visible, después fractales escape-time, después Newton y geometrías.
+- Añadir pantalla de diagnóstico técnico: navegador, tamaño del canvas, motor activo y errores de consola capturados.
 - Panel explicativo por fractal con fórmula, historia y ejemplos de uso.
 - Parámetros editables para Julia, Multibrot y Newton.
 - Paletas de color seleccionables.
 - Marcadores de ubicaciones interesantes dentro de Mandelbrot y Burning Ship.
 - Mini-mapa del plano complejo.
-- Sistema de rutas o “viajes” por zonas famosas de los fractales.
-- Reintroducción precisa de curvas IFS/recursivas mediante buffers WebGL robustos.
 - Primeros fractales 3D: Mandelbulb, Mandelbox, Julia 3D y ray marching.
-- Versión educativa con glosario: número complejo, iteración, convergencia, autosimilitud, dimensión fractal.
 
 ## Historial de versiones
+
+### v1.1.2
+
+- Corregido el problema persistente de lienzo negro sustituyendo temporalmente WebGL por Canvas 2D estable.
+- Añadido cache busting en `index.html` para forzar la descarga del nuevo `main.js`.
+- Cambiado el selector de “Calidad GPU” a “Calidad visual”.
+- Mantenidos controles de navegación, zoom, arrastre, velocidad y exportación PNG.
 
 ### v1.1.1
 
