@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#03050c" />
+    <meta name="description" content="Biblioteca inmersiva de fractales 2D y 3D acelerada por GPU." />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Fractales — Biblioteca inmersiva</title>
+    <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.min.js"}}</script>
+  </head>
+  <body>
+    <canvas id="viewport" aria-label="Explorador inmersivo de fractales"></canvas>
+    <div id="ui-root"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

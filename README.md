@@ -1,128 +1,151 @@
 # Fractales
 
-**Fractales** es un explorador web interactivo de fractales pensado como proyecto científico, educativo y de conocimiento público. Funciona como una página estática compatible con GitHub Pages, sin servidor, compilación ni dependencias externas.
+**Fractales** es una biblioteca inmersiva de fractales 2D y 3D. La versión 2 reconstruye el proyecto desde cero con TypeScript, Vite, Three.js, shaders GLSL y render adaptativo acelerado por GPU.
 
-## Estado actual
+## Versión actual
 
-Versión actual: `v1.1.2`.
+`v2.0.0` — reconstrucción arquitectónica y gráfica.
 
-Esta versión prioriza la **visibilidad estable**. Después de detectar que el motor WebGL dejaba el lienzo negro en algunos entornos, el render principal se ha pasado temporalmente a **Canvas 2D** con render adaptativo. El objetivo inmediato es que la aplicación pinte siempre en pantalla, mantenga la navegación y permita validar la experiencia antes de reintroducir WebGL/WebGPU con pruebas más controladas.
+La nueva aplicación se compila y publica mediante GitHub Actions. Mientras se cambia la fuente de GitHub Pages a **GitHub Actions**, la raíz del repositorio conserva temporalmente la versión estable anterior para no dejar el sitio fuera de servicio.
 
-## Motor gráfico
+## Objetivo
 
-- **Canvas 2D estable** como motor principal de la versión `v1.1.2`.
-- Render adaptativo: resolución reducida durante navegación y mayor resolución cuando la vista queda quieta.
-- Cache busting en `index.html` mediante `?v=1.1.2` para evitar que GitHub Pages o el navegador mantengan un `main.js` antiguo.
-- Exportación a PNG desde el propio lienzo.
+El proyecto busca convertirse en una biblioteca visual y educativa donde se puedan explorar fractales como si fueran entornos de un videojuego:
 
-## Fractales incluidos
+- navegación continua con teclado y ratón;
+- sensación de profundidad y espacio aparentemente infinito;
+- render de menor resolución durante el movimiento;
+- refinado progresivo al detenerse;
+- uso de la GPU del dispositivo;
+- biblioteca modular y ampliable;
+- soporte conjunto de fractales bidimensionales y volumétricos.
 
-| Fractal | Familia | Renderizado |
-|---|---:|---|
-| Mandelbrot | Escape-time | Canvas 2D adaptativo |
-| Julia | Escape-time | Canvas 2D adaptativo |
-| Burning Ship | Escape-time | Canvas 2D adaptativo |
-| Tricorn / Mandelbar | Escape-time | Canvas 2D adaptativo |
-| Multibrot cúbico | Escape-time | Canvas 2D adaptativo |
-| Newton `z³ − 1` | Newtoniano | Canvas 2D adaptativo |
-| Helecho de Barnsley | IFS | Puntos Canvas |
-| Triángulo de Sierpinski | IFS | Puntos Canvas |
-| Alfombra de Sierpinski | Geométrico | Canvas recursivo |
-| Copo de nieve de Koch | Curva fractal | Canvas recursivo |
-| Curva del dragón | Curva fractal | Canvas recursivo |
-| Curva de Hilbert | Curva de relleno | Canvas recursivo |
+## Biblioteca inicial v2
+
+### 2D
+
+- Mandelbrot.
+- Julia.
+- Burning Ship.
+- Tricorn.
+- Multibrot cúbico.
+- Celtic.
+
+### 3D
+
+- Mandelbulb.
+- Mandelbox.
+- Esponja de Menger.
+- Julia 3D.
+
+Los fractales 2D se calculan por píxel en un fragment shader. Los fractales 3D utilizan estimadores de distancia y ray marching, sin mallas precalculadas.
 
 ## Controles
 
-- **Ratón + clic + arrastre**: desplaza el fractal horizontal y verticalmente, como en una superficie táctil.
-- **Rueda del ratón**: ajusta la velocidad global de navegación y zoom. La velocidad se muestra en el panel.
-- **W**: zoom hacia dentro.
-- **S**: zoom hacia fuera.
-- **A**: desplazamiento hacia la izquierda.
-- **D**: desplazamiento hacia la derecha.
-- **Flechas**: desplazamiento adicional horizontal y vertical.
-- **Recentrar**: vuelve al encuadre recomendado del fractal actual.
-- **Julia aleatoria**: cambia a un conjunto de Julia con una constante compleja aleatoria.
-- **PNG**: exporta una captura del lienzo actual.
+### Modo inmersivo
 
-## Interfaz
+Haz clic sobre el lienzo o pulsa **Entrar**. El navegador bloqueará el puntero y el ratón controlará la orientación. Pulsa `Esc` para liberar el cursor.
 
-- Lienzo a pantalla completa.
-- Panel flotante plegable.
-- Selector de fractal.
-- Selector de calidad visual: rendimiento, nativa y suprema.
-- Indicador de velocidad, zoom, posición y tiempo de render.
-- Favicon SVG propio basado en una estructura tipo Sierpinski.
+### Entornos 2D
 
-## Estructura del proyecto
+- `W` / `S`: acercar o alejar.
+- `A` / `D`: desplazamiento horizontal.
+- Flechas: desplazamiento horizontal y vertical.
+- Ratón bloqueado o arrastre: desplazamiento libre.
+- Rueda: ajustar velocidad.
+- `Shift`: aceleración temporal.
+
+### Entornos 3D
+
+- `W` / `S`: avanzar o retroceder.
+- `A` / `D`: desplazamiento lateral.
+- `Q` / `E`: bajar o subir.
+- Ratón: orientación de cámara.
+- Rueda: ajustar velocidad.
+- `Shift`: turbo.
+
+## Render adaptativo
+
+El motor utiliza tres etapas:
+
+1. **Navegación:** resolución interna y complejidad reducidas.
+2. **Refinando:** resolución e iteraciones intermedias.
+3. **Máxima definición:** resolución ajustada al dispositivo y mayor profundidad matemática.
+
+El shader calcula únicamente los píxeles visibles del viewport. No se genera geometría invisible fuera de cámara.
+
+## Arquitectura
 
 ```text
 Fractales/
-├── favicon.svg
-├── index.html
-├── styles.css
-├── src/
-│   └── main.js
-└── README.md
+├── app/
+│   ├── public/favicon.svg
+│   ├── src/
+│   │   ├── app.ts          # controles, navegación y render adaptativo
+│   │   ├── catalog.ts      # catálogo extensible de fractales
+│   │   ├── main.ts         # arranque seguro
+│   │   ├── shaders.ts      # motor matemático GLSL 2D/3D
+│   │   └── styles.css      # interfaz inmersiva
+│   └── index.html
+├── scripts/postbuild.mjs
+├── .github/workflows/deploy-pages.yml
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
-## Publicación en GitHub Pages
+## Desarrollo local
 
-Al ser una web estática, puede publicarse directamente con GitHub Pages desde la rama `main`.
+Requiere Node.js 22 o superior.
 
-Ruta recomendada en GitHub:
+```bash
+npm install
+npm run dev
+```
 
-1. Entra en **Settings** del repositorio.
-2. Abre **Pages**.
-3. En **Build and deployment**, selecciona **Deploy from a branch**.
-4. Elige rama `main` y carpeta `/root`.
-5. Guarda los cambios.
+Compilación de producción:
 
-## Objetivo del proyecto
+```bash
+npm run build
+```
 
-El objetivo de **Fractales** es evolucionar hacia una herramienta visual y educativa donde cualquier persona pueda explorar familias fractales, comparar fórmulas, entender su construcción matemática y navegar por ellas con una experiencia cercana a la de un visor científico interactivo.
+## Activar la nueva versión en GitHub Pages
 
-## Próximas mejoras propuestas
+1. Abre `Settings > Pages`.
+2. En `Build and deployment`, cambia **Source** a `GitHub Actions`.
+3. Abre la pestaña `Actions` y ejecuta **Deploy Fractales to GitHub Pages**, o realiza cualquier nuevo push a `main`.
 
-- Reintroducir WebGL2 de forma incremental: primero un shader mínimo visible, después fractales escape-time, después Newton y geometrías.
-- Añadir pantalla de diagnóstico técnico: navegador, tamaño del canvas, motor activo y errores de consola capturados.
-- Panel explicativo por fractal con fórmula, historia y ejemplos de uso.
-- Parámetros editables para Julia, Multibrot y Newton.
-- Paletas de color seleccionables.
-- Marcadores de ubicaciones interesantes dentro de Mandelbrot y Burning Ship.
-- Mini-mapa del plano complejo.
-- Primeros fractales 3D: Mandelbulb, Mandelbox, Julia 3D y ray marching.
+## Decisiones tecnológicas
 
-## Historial de versiones
+### Por qué TypeScript y no Python o Java
 
-### v1.1.2
+GitHub Pages sirve archivos estáticos. Python o Java necesitarían un servidor externo y no acelerarían el render del usuario. La mejora gráfica real se obtiene ejecutando shaders en la GPU local.
 
-- Corregido el problema persistente de lienzo negro sustituyendo temporalmente WebGL por Canvas 2D estable.
-- Añadido cache busting en `index.html` para forzar la descarga del nuevo `main.js`.
-- Cambiado el selector de “Calidad GPU” a “Calidad visual”.
-- Mantenidos controles de navegación, zoom, arrastre, velocidad y exportación PNG.
+### Por qué Three.js
 
-### v1.1.1
+Three.js proporciona una capa estable sobre WebGL2 para gestionar el contexto gráfico, buffers, resolución y compilación de shaders. El cálculo fractal sigue siendo personalizado y reside en `shaders.ts`.
 
-- Corregida la pantalla negra de la `v1.1.0`.
-- Sustituido el motor WebGL experimental por un shader único más compatible.
-- Añadidos errores visibles de compilación/enlace WebGL para evitar fallos silenciosos.
-- Mantenido el render GPU y los controles existentes.
+### WebGPU
 
-### v1.1.0
+La interfaz detecta si WebGPU está disponible y lo muestra en la telemetría. La v2 utiliza WebGL2 como backend estable y queda preparada para incorporar un backend WebGPU/WGSL.
 
-- Añadido favicon SVG propio con identidad fractal.
-- Corregida la legibilidad de los desplegables.
-- Sustituido el motor CPU/Canvas 2D por un motor WebGL2 acelerado por GPU.
-- Añadido indicador de tiempo de render y FPS.
-- Añadido selector de calidad GPU.
-- Preparada la base técnica para futuras visualizaciones 3D.
+## Límites actuales
 
-### v1.0.0
+- El zoom 2D extremo todavía está limitado por la precisión de coma flotante del shader.
+- Los entornos 3D usan ray marching en tiempo real; el detalle máximo depende de la GPU.
+- Esta versión constituye la base profesional del proyecto, no la inclusión de todos los fractales conocidos.
 
-- Primera versión del explorador.
-- Lienzo a pantalla completa.
-- Selector de tipos de fractal.
-- Navegación con ratón, WASD, flechas y velocidad ajustable con rueda.
-- Exportación PNG.
-- README inicial.
+## Hoja de ruta
+
+- Aritmética double-single y perturbation rendering para zoom profundo.
+- Backend WebGPU con WGSL.
+- Acumulación temporal y antialiasing progresivo.
+- Más familias 2D y 3D.
+- Marcadores, rutas guiadas y coordenadas compartibles.
+- Modo educativo con fórmula, historia, parámetros y glosario.
+- Presets cinematográficos y exportación 4K/8K.
+- WebXR para exploración inmersiva.
+
+## Licencia
+
+Apache License 2.0. Three.js se distribuye bajo licencia MIT como dependencia externa.
