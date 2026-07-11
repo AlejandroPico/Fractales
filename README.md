@@ -1,50 +1,88 @@
 # Fractales
 
-**Fractales** es una biblioteca inmersiva de fractales 2D y 3D. La versión 2 reconstruye el proyecto desde cero con TypeScript, Vite, Three.js, shaders GLSL y render adaptativo acelerado por GPU.
+**Fractales** es una biblioteca inmersiva de fractales 2D y 3D acelerada por GPU. La versión `v2.1.0` profundiza en tres objetivos: una interfaz científica más sobria, zoom 2D de precisión extendida y navegación 3D adaptada a la proximidad de las superficies.
 
 ## Versión actual
 
-`v2.0.0` — reconstrucción arquitectónica y gráfica.
+`v2.1.0` — precisión profunda, catálogo ampliado y rediseño integral de la interfaz.
 
-La nueva aplicación se compila y publica mediante GitHub Actions. Mientras se cambia la fuente de GitHub Pages a **GitHub Actions**, la raíz del repositorio conserva temporalmente la versión estable anterior para no dejar el sitio fuera de servicio.
+## Cambios principales de v2.1
 
-## Objetivo
+- Interfaz completamente recta, sin tarjetas ni botones redondeados.
+- Eliminado el HUD superior con nombre, dimensión y descripción.
+- Motor, FPS y estado de refinado trasladados al menú lateral.
+- Barra superior del menú formada por iconos cuadrados:
+  - biblioteca de información;
+  - recentrado;
+  - pantalla completa;
+  - captura PNG de alta resolución.
+- Biblioteca educativa interna desde nivel introductorio hasta conceptos avanzados.
+- Catálogo ampliado a **24 entornos**: 16 fractales 2D y 8 fractales 3D.
+- Aritmética `double-single` en el shader 2D para superar la precisión de un `float` convencional.
+- Escala mínima reducida a `2 × 10⁻¹⁷`, frente al límite práctico visual cercano a `10⁻⁶` de la primera implementación GPU.
+- Navegación 3D con velocidad proporcional al estimador de distancia y protección contra atravesar superficies.
+- Capturas PNG sin pérdida en resolución de pantalla, 4K u 8K, limitadas automáticamente por la GPU.
+- Calidad, detalle, ray marching y precisión de superficie configurados al máximo por defecto.
 
-El proyecto busca convertirse en una biblioteca visual y educativa donde se puedan explorar fractales como si fueran entornos de un videojuego:
+## Profundidad 2D
 
-- navegación continua con teclado y ratón;
-- sensación de profundidad y espacio aparentemente infinito;
-- render de menor resolución durante el movimiento;
-- refinado progresivo al detenerse;
-- uso de la GPU del dispositivo;
-- biblioteca modular y ampliable;
-- soporte conjunto de fractales bidimensionales y volumétricos.
+Los shaders WebGL suelen trabajar internamente con coma flotante de 32 bits. Esto provoca que, al aumentar el zoom, píxeles vecinos terminen compartiendo la misma coordenada y aparezcan bloques o ruido.
 
-## Biblioteca inicial v2
+La v2.1 representa las coordenadas mediante dos flotantes —parte alta y parte baja— y ejecuta las operaciones complejas fundamentales con aritmética `double-single`. En condiciones normales permite alcanzar órdenes de zoom aproximados entre `10¹²` y `10¹⁶`, dependiendo de la GPU, la fórmula y la zona explorada.
 
-### 2D
+No se presenta como infinito matemático literal. Para profundidades de cientos o miles de exponentes será necesaria la siguiente fase de la hoja de ruta: órbitas de referencia arbitrariamente precisas y perturbation rendering.
 
-- Mandelbrot.
-- Julia.
-- Burning Ship.
-- Tricorn.
-- Multibrot cúbico.
-- Celtic.
+## Navegación 3D
 
-### 3D
+La velocidad ya no es una distancia fija por fotograma. Antes de mover la cámara se evalúa el estimador de distancia del entorno actual:
 
-- Mandelbulb.
-- Mandelbox.
-- Esponja de Menger.
-- Julia 3D.
+- en espacios abiertos el desplazamiento es rápido;
+- cerca de una superficie disminuye automáticamente;
+- si el siguiente paso invadiría la geometría, el movimiento se reduce;
+- la rueda permite bajar la velocidad hasta `0.0001×`.
 
-Los fractales 2D se calculan por píxel en un fragment shader. Los fractales 3D utilizan estimadores de distancia y ray marching, sin mallas precalculadas.
+Esta estrategia mejora especialmente Mandelbulb, Mandelbox, Menger y los IFS volumétricos.
+
+## Biblioteca inicial v2.1
+
+### Fractales 2D
+
+1. Mandelbrot.
+2. Julia.
+3. Burning Ship.
+4. Tricorn.
+5. Multibrot cúbico.
+6. Celtic.
+7. Buffalo.
+8. Perpendicular Mandelbrot.
+9. Perpendicular Burning Ship.
+10. Phoenix.
+11. Magnet I.
+12. Newton `z³ − 1`.
+13. Multibrot cuártico.
+14. Multibrot quíntico.
+15. Burning Ship cúbico.
+16. Nova.
+
+### Entornos 3D
+
+1. Mandelbulb.
+2. Mandelbox.
+3. Esponja de Menger.
+4. Julia 3D.
+5. Tetraedro de Sierpinski.
+6. Apollonian 3D.
+7. Amazing Surface.
+8. IFS caleidoscópico.
 
 ## Controles
 
-### Modo inmersivo
+### General
 
-Haz clic sobre el lienzo o pulsa **Entrar**. El navegador bloqueará el puntero y el ratón controlará la orientación. Pulsa `Esc` para liberar el cursor.
+- Clic sobre el lienzo: bloquear el puntero e iniciar el modo inmersivo.
+- `Esc`: liberar el cursor.
+- Rueda: ajustar la velocidad base.
+- `Shift`: aceleración temporal.
 
 ### Entornos 2D
 
@@ -52,40 +90,63 @@ Haz clic sobre el lienzo o pulsa **Entrar**. El navegador bloqueará el puntero 
 - `A` / `D`: desplazamiento horizontal.
 - Flechas: desplazamiento horizontal y vertical.
 - Ratón bloqueado o arrastre: desplazamiento libre.
-- Rueda: ajustar velocidad.
-- `Shift`: aceleración temporal.
 
 ### Entornos 3D
 
 - `W` / `S`: avanzar o retroceder.
 - `A` / `D`: desplazamiento lateral.
 - `Q` / `E`: bajar o subir.
-- Ratón: orientación de cámara.
-- Rueda: ajustar velocidad.
-- `Shift`: turbo.
+- Ratón: orientación de la cámara.
 
 ## Render adaptativo
 
 El motor utiliza tres etapas:
 
-1. **Navegación:** resolución interna y complejidad reducidas.
-2. **Refinando:** resolución e iteraciones intermedias.
-3. **Máxima definición:** resolución ajustada al dispositivo y mayor profundidad matemática.
+1. **Navegación:** resolución y complejidad reducidas para maximizar la respuesta.
+2. **Refinando:** resolución, iteraciones y pasos de ray marching intermedios.
+3. **Máxima definición:** calidad completa después de permanecer quieto.
 
-El shader calcula únicamente los píxeles visibles del viewport. No se genera geometría invisible fuera de cámara.
+Los ajustes máximos no obligan a renderizar toda la calidad durante el movimiento. La aplicación reduce temporalmente el coste y recupera la definición al detenerse.
+
+## Biblioteca interna de información
+
+El icono de información abre un sistema documental integrado con:
+
+- introducción a los fractales;
+- números complejos, iteración, escape y convergencia;
+- dimensión fractal y autosimilitud;
+- ray marching y estimadores de distancia;
+- precisión numérica y `double-single`;
+- controles y parámetros visuales;
+- catálogo detallado de cada entorno;
+- glosario avanzado;
+- búsqueda interna.
+
+## Capturas
+
+El botón de cámara genera archivos PNG sin pérdida. Puede elegirse:
+
+- resolución de pantalla;
+- 4K;
+- 8K.
+
+La exportación consulta el límite de textura de la GPU y reduce automáticamente la resolución cuando el dispositivo no puede asumir el tamaño solicitado.
 
 ## Arquitectura
 
 ```text
 Fractales/
 ├── app/
-│   ├── public/favicon.svg
+│   ├── public/
+│   │   └── favicon.svg
 │   ├── src/
-│   │   ├── app.ts          # controles, navegación y render adaptativo
-│   │   ├── catalog.ts      # catálogo extensible de fractales
-│   │   ├── main.ts         # arranque seguro
-│   │   ├── shaders.ts      # motor matemático GLSL 2D/3D
-│   │   └── styles.css      # interfaz inmersiva
+│   │   ├── app.ts          # interfaz, navegación, captura y render adaptativo
+│   │   ├── catalog.ts      # catálogo y metadatos de los fractales
+│   │   ├── knowledge.ts    # biblioteca educativa interna
+│   │   ├── math.ts         # precisión y estimadores CPU para navegación
+│   │   ├── shaders.ts      # motor GLSL 2D/3D
+│   │   ├── main.ts
+│   │   └── styles.css
 │   └── index.html
 ├── scripts/postbuild.mjs
 ├── .github/workflows/deploy-pages.yml
@@ -109,41 +170,31 @@ Compilación de producción:
 npm run build
 ```
 
-## Activar la nueva versión en GitHub Pages
+## Publicación en GitHub Pages
 
-1. Abre `Settings > Pages`.
-2. En `Build and deployment`, cambia **Source** a `GitHub Actions`.
-3. Abre la pestaña `Actions` y ejecuta **Deploy Fractales to GitHub Pages**, o realiza cualquier nuevo push a `main`.
+La fuente recomendada es **GitHub Actions**:
 
-## Decisiones tecnológicas
+1. `Settings > Pages`.
+2. En `Build and deployment`, seleccionar `GitHub Actions`.
+3. Ejecutar `Deploy Fractales to GitHub Pages` o realizar un push a `main`.
 
-### Por qué TypeScript y no Python o Java
+## Validación de v2.1
 
-GitHub Pages sirve archivos estáticos. Python o Java necesitarían un servidor externo y no acelerarían el render del usuario. La mejora gráfica real se obtiene ejecutando shaders en la GPU local.
+- TypeScript estricto: correcto.
+- Compilación Vite: correcta.
+- Análisis sintáctico de los shaders GLSL: correcto.
+- Bundle de producción generado correctamente.
 
-### Por qué Three.js
-
-Three.js proporciona una capa estable sobre WebGL2 para gestionar el contexto gráfico, buffers, resolución y compilación de shaders. El cálculo fractal sigue siendo personalizado y reside en `shaders.ts`.
-
-### WebGPU
-
-La interfaz detecta si WebGPU está disponible y lo muestra en la telemetría. La v2 utiliza WebGL2 como backend estable y queda preparada para incorporar un backend WebGPU/WGSL.
-
-## Límites actuales
-
-- El zoom 2D extremo todavía está limitado por la precisión de coma flotante del shader.
-- Los entornos 3D usan ray marching en tiempo real; el detalle máximo depende de la GPU.
-- Esta versión constituye la base profesional del proyecto, no la inclusión de todos los fractales conocidos.
+La validación visual final requiere un navegador con un contexto WebGL real. El entorno automatizado utilizado para compilar no dispone de EGL funcional.
 
 ## Hoja de ruta
 
-- Aritmética double-single y perturbation rendering para zoom profundo.
-- Backend WebGPU con WGSL.
+- Perturbation rendering con órbitas de referencia multiprecisión.
+- Series approximation para saltar iteraciones en zoom extremo.
+- Backend WebGPU/WGSL.
 - Acumulación temporal y antialiasing progresivo.
-- Más familias 2D y 3D.
 - Marcadores, rutas guiadas y coordenadas compartibles.
-- Modo educativo con fórmula, historia, parámetros y glosario.
-- Presets cinematográficos y exportación 4K/8K.
+- Presets cinematográficos y exportación 8K por teselas.
 - WebXR para exploración inmersiva.
 
 ## Licencia
