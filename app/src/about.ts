@@ -44,7 +44,7 @@ export function installProjectAbout(root: HTMLElement): void {
 
           <dl class="project-about__facts">
             <div><dt>Autor</dt><dd>Alejandro Pico</dd></div>
-            <div><dt>Versión</dt><dd>2.1.1</dd></div>
+            <div><dt>Versión</dt><dd>2.1.0</dd></div>
             <div><dt>Motor</dt><dd>TypeScript · Three.js · WebGL2 · GLSL</dd></div>
             <div><dt>Propósito</dt><dd>Exploración, divulgación y experimentación visual con geometría fractal 2D y 3D.</dd></div>
           </dl>
