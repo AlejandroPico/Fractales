@@ -1,3 +1,4 @@
+import { installProjectAbout } from './about.js';
 import { FractalApp } from './app.js';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#viewport');
@@ -9,6 +10,7 @@ if (!canvas || !root) {
 
 try {
   new FractalApp(canvas, root);
+  installProjectAbout(root);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   root.innerHTML = `<section class="fatal"><strong>Error de inicialización</strong><p>${message}</p><p>Comprueba que la aceleración por hardware esté activa en el navegador.</p></section>`;
