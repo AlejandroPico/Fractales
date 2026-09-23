@@ -1,6 +1,14 @@
 import { installProjectAbout } from './about.js';
 import { FractalApp } from './app.js';
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}service-worker.js`).catch((error: unknown) => {
+      console.warn('No se pudo registrar la aplicación sin conexión.', error);
+    });
+  });
+}
+
 type StartupController = {
   set: (value: number, label?: string) => void;
   complete: () => void;

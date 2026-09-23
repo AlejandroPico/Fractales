@@ -10,9 +10,6 @@ export default defineConfig({
     sourcemap: false,
     chunkSizeWarningLimit: 700,
     target: 'es2022',
-    assetsInlineLimit: 4096,
-    rollupOptions: {
-      external: ['three']
-    }
+    assetsInlineLimit: 4096
   }
 });

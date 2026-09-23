@@ -1,0 +1,16 @@
+{
+  "name": "Fractales — Biblioteca inmersiva",
+  "short_name": "Fractales",
+  "description": "Biblioteca inmersiva de fractales 2D y 3D acelerada por GPU.",
+  "lang": "es",
+  "start_url": "/Fractales/",
+  "scope": "/Fractales/",
+  "display": "standalone",
+  "background_color": "#02040b",
+  "theme_color": "#03050c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

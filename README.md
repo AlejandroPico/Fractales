@@ -6,6 +6,10 @@
 
 `v2.1.0` — precisión profunda, catálogo ampliado y rediseño integral de la interfaz.
 
+## Instalación en Android
+
+Abre [Fractales](https://alejandropico.github.io/Fractales/) en Chrome y selecciona **Instalar aplicación** en el menú del navegador. Se abrirá como aplicación independiente y, tras una primera carga con conexión, sus recursos quedarán disponibles sin conexión. La representación de fractales requiere un dispositivo con WebGL.
+
 ## Cambios principales de v2.1
 
 - Interfaz completamente recta, sin tarjetas ni botones redondeados.
